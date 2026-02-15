@@ -98,6 +98,7 @@
     .main {
       display: flex;
       flex: 1;
+      min-height: 0;
       overflow: hidden;
       position: relative;
       z-index: 5;
@@ -246,6 +247,8 @@
     /* ── Canvas Area ────────────────────────────────────── */
     .canvas-area {
       flex: 1;
+      min-width: 0;
+      min-height: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -580,14 +583,18 @@
     // ── Canvas sizing ─────────────────────────────────
     function resizeCanvas() {
       const rect = canvasArea.getBoundingClientRect();
-      const w = Math.min(rect.width - 40, 1200);
-      const h = Math.min(rect.height - 40, 900);
-      // Save current image
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const w = Math.max(100, Math.floor(Math.min(rect.width - 40, 1200)));
+      const h = Math.max(100, Math.floor(Math.min(rect.height - 40, 900)));
+      if (w === canvas.width && h === canvas.height) return;
+      // Save current image if canvas already has content
+      let img = null;
+      if (canvas.width > 0 && canvas.height > 0) {
+        try { img = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
+      }
       canvas.width = w;
       canvas.height = h;
       fillBackground();
-      ctx.putImageData(img, 0, 0);
+      if (img) ctx.putImageData(img, 0, 0);
     }
 
     function fillBackground() {
@@ -1071,7 +1078,12 @@
       updateStatus();
     }
 
-    init();
+    // Wait for layout to be fully computed before initializing
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        init();
+      });
+    });
 
     // Register service worker for offline support
     if ('serviceWorker' in navigator) {
