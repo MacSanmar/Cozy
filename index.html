@@ -12,6 +12,7 @@
   <style>
     /* ── Reset & Base ───────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
 
     :root {
       --bg:        #fdf6ec;
@@ -31,7 +32,8 @@
       color: var(--text);
       overflow: hidden;
       height: 100vh;
-      width: 100vw;
+      height: 100dvh;
+      width: 100%;
       display: flex;
       flex-direction: column;
       user-select: none;
@@ -261,6 +263,8 @@
       border-radius: var(--radius);
       box-shadow: 0 4px 24px var(--shadow), 0 1px 4px var(--shadow);
       overflow: hidden;
+      max-width: 100%;
+      max-height: 100%;
     }
 
     #drawing-canvas {
@@ -583,8 +587,11 @@
     // ── Canvas sizing ─────────────────────────────────
     function resizeCanvas() {
       const rect = canvasArea.getBoundingClientRect();
-      const w = Math.max(100, Math.floor(Math.min(rect.width - 40, 1200)));
-      const h = Math.max(100, Math.floor(Math.min(rect.height - 40, 900)));
+      // Fallback if flex layout hasn't computed yet
+      const availW = rect.width > 60 ? rect.width : (window.innerWidth - 260);
+      const availH = rect.height > 60 ? rect.height : (window.innerHeight - 80);
+      const w = Math.max(200, Math.floor(Math.min(availW - 40, 1200)));
+      const h = Math.max(200, Math.floor(Math.min(availH - 40, 900)));
       if (w === canvas.width && h === canvas.height) return;
       // Save current image if canvas already has content
       let img = null;
@@ -1078,11 +1085,18 @@
       updateStatus();
     }
 
-    // Wait for layout to be fully computed before initializing
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    // Wait for everything to be loaded and layout computed
+    window.addEventListener('load', () => {
+      try {
         init();
-      });
+      } catch(e) {
+        console.error('Cozy Draw init error:', e);
+        // Emergency fallback: set canvas to a visible size
+        canvas.width = 800;
+        canvas.height = 500;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 800, 500);
+      }
     });
 
     // Register service worker for offline support
