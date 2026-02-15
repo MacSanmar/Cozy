@@ -1,0 +1,21 @@
+{
+  "name": "Cozy Draw",
+  "short_name": "CozyDraw",
+  "description": "A fun and relaxing drawing app for cozy creativity",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdf6ec",
+  "theme_color": "#fdf6ec",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
