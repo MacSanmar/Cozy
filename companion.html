@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cozy Color Companion</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#fdf6ec">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    /* ══ Reset & Base ══════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg:        #fdf6ec;
+      --panel:     #faf0db;
+      --panel-alt: #f5e6c8;
+      --border:    #e8d5b5;
+      --text:      #5a4a3a;
+      --accent:    #d4896a;
+      --accent2:   #7eb5a6;
+      --shadow:    rgba(90, 74, 58, .12);
+      --radius:    14px;
+      --star:      #f0c27f;
+      --locked:    #ccc;
+      --success:   #7eb5a6;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      height: 100dvh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ══ Ambient Particles Canvas ═════════════════════ */
+    #ambient-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+    }
+
+    /* ══ Top Bar ══════════════════════════════════════ */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+      flex-shrink: 0;
+      min-height: 48px;
+    }
+    .topbar h1 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .topbar h1 .accent { color: var(--accent); }
+    .topbar h1 .accent2 { color: var(--accent2); }
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .icon-btn {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all .15s;
+      color: var(--text);
+    }
+    .icon-btn:hover { background: var(--border); }
+    .icon-btn.muted { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ══ Content Area ═════════════════════════════════ */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      position: relative;
+      z-index: 5;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab-panel {
+      display: none;
+      animation: fadeIn 150ms ease;
+    }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ══ Bottom Navigation ════════════════════════════ */
+    .bottom-nav {
+      display: flex;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      z-index: 10;
+      flex-shrink: 0;
+      min-height: 56px;
+    }
+    .nav-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 6px 0;
+      border: none;
+      background: none;
+      color: var(--text);
+      opacity: 0.5;
+      font-family: inherit;
+      font-size: .65rem;
+      cursor: pointer;
+      transition: all .15s;
+      position: relative;
+    }
+    .nav-tab .nav-icon { font-size: 1.3rem; }
+    .nav-tab.active {
+      opacity: 1;
+      color: var(--accent);
+    }
+    .nav-tab.active::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 25%;
+      right: 25%;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 0 0 3px 3px;
+    }
+
+    /* ══ Cards ════════════════════════════════════════ */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .card h3 {
+      font-size: .95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: .85rem;
+      line-height: 1.55;
+      opacity: .85;
+    }
+
+    /* ══ Buttons ══════════════════════════════════════ */
+    .btn {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: .82rem;
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: var(--border); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: #c47a5a; }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+
+    /* ══ Toast ════════════════════════════════════════ */
+    .toast {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--text);
+      color: var(--bg);
+      padding: 10px 24px;
+      border-radius: 20px;
+      font-size: .82rem;
+      opacity: 0;
+      transition: all .3s;
+      z-index: 200;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ══ Lesson Detail Overlay ════════════════════════ */
+    .lesson-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .lesson-overlay.open {
+      display: flex;
+      animation: slideIn 200ms ease;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    .lesson-overlay .lesson-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .lesson-overlay .lesson-header .back-btn {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: var(--text);
+      padding: 4px;
+    }
+    .lesson-overlay .lesson-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .lesson-overlay .lesson-body h2 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+    .lesson-overlay .lesson-body p {
+      font-size: .85rem;
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+    .lesson-overlay .lesson-body ul {
+      list-style: none;
+      margin-bottom: 16px;
+    }
+    .lesson-overlay .lesson-body ul li {
+      font-size: .85rem;
+      line-height: 1.55;
+      padding: 6px 0 6px 20px;
+      position: relative;
+    }
+    .lesson-overlay .lesson-body ul li::before {
+      content: '\2728';
+      position: absolute;
+      left: 0;
+    }
+    .exercise-box {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin: 16px 0;
+    }
+    .exercise-box h4 {
+      font-size: .85rem;
+      margin-bottom: 6px;
+      color: var(--accent2);
+    }
+    .exercise-box p {
+      font-size: .83rem;
+    }
+
+    /* ══ Star Rating ═════════════════════════════════ */
+    .star-rating {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+    }
+    .star-rating .star {
+      font-size: 2rem;
+      cursor: pointer;
+      transition: transform .15s;
+      opacity: .3;
+    }
+    .star-rating .star.lit { opacity: 1; color: var(--star); }
+    .star-rating .star:hover { transform: scale(1.2); }
+
+    /* ══ Ambient Sound Grid ══════════════════════════ */
+    .sound-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .sound-card {
+      background: var(--panel);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .sound-card .sound-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+    .sound-card .sound-name { font-size: .72rem; opacity: .7; }
+    .sound-card.active {
+      border-color: var(--accent);
+      background: #fce8de;
+    }
+    .sound-card.active .sound-name { opacity: 1; }
+
+    /* Volume slider */
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .volume-row label { font-size: .8rem; flex-shrink: 0; }
+    .volume-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 6px;
+    }
+
+    /* ══ Palette Cards ═══════════════════════════════ */
+    .palette-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .palette-card h3 { font-size: .9rem; margin-bottom: 10px; }
+    .palette-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .palette-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,.08);
+      cursor: pointer;
+      transition: transform .15s;
+      position: relative;
+    }
+    .palette-swatch:hover { transform: scale(1.15); }
+    .palette-swatch .hex-label {
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: .55rem;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity .15s;
+      background: var(--text);
+      color: var(--bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .palette-swatch:hover .hex-label { opacity: 1; }
+
+    /* ══ Timer Display ═══════════════════════════════ */
+    .timer-display {
+      font-size: 3rem;
+      font-weight: 300;
+      text-align: center;
+      letter-spacing: 2px;
+      margin: 20px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .session-notes {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: .85rem;
+      color: var(--text);
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    /* ══ Lesson Path Cards ═══════════════════════════ */
+    .path-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .path-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .path-header .path-icon { font-size: 1.5rem; }
+    .path-header .path-name { font-weight: 600; font-size: .95rem; }
+    .path-header .path-badge {
+      margin-left: auto;
+      font-size: .7rem;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background: var(--locked);
+      color: #fff;
+    }
+    .path-header .path-badge.earned {
+      background: var(--star);
+      color: var(--text);
+    }
+    .path-progress {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .path-progress-fill {
+      height: 100%;
+      background: var(--accent2);
+      border-radius: 3px;
+      transition: width .3s;
+    }
+    .lesson-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .lesson-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--panel-alt);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .lesson-item:hover { background: var(--border); }
+    .lesson-item.locked {
+      opacity: .5;
+      cursor: default;
+    }
+    .lesson-item.locked:hover { background: var(--panel-alt); }
+    .lesson-item .lesson-status {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      flex-shrink: 0;
+      background: var(--border);
+    }
+    .lesson-item.completed .lesson-status {
+      background: var(--success);
+      color: #fff;
+    }
+    .lesson-item.locked .lesson-status {
+      background: var(--locked);
+      color: #fff;
+    }
+    .lesson-item .lesson-info { flex: 1; }
+    .lesson-item .lesson-title { font-size: .85rem; font-weight: 600; }
+    .lesson-item .lesson-stars {
+      font-size: .75rem;
+      color: var(--star);
+    }
+
+    /* ══ Dashboard Stats ═════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .stat-card .stat-label {
+      font-size: .7rem;
+      opacity: .7;
+      margin-top: 2px;
+    }
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge-item {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: .75rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: .4;
+    }
+    .badge-item.earned {
+      opacity: 1;
+      border-color: var(--star);
+      background: #fdf3e0;
+    }
+    .cozy-master {
+      text-align: center;
+      padding: 20px;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #fdf3e0, #fce8de);
+      border-radius: var(--radius);
+      border: 2px solid var(--star);
+      display: none;
+    }
+    .cozy-master.show { display: block; }
+    .cozy-master .master-icon { font-size: 3rem; }
+    .cozy-master .master-title { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin-top: 8px; }
+
+    /* ══ Streak fire animation ═══════════════════════ */
+    .streak-fire {
+      display: inline-block;
+      animation: fireGlow 1.5s ease-in-out infinite alternate;
+    }
+    @keyframes fireGlow {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.3) drop-shadow(0 0 6px #f0c27f); }
+    }
+
+    /* ══ Confetti Canvas ═════════════════════════════ */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 300;
+      display: none;
+    }
+
+    /* ══ Session history ═════════════════════════════ */
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--panel-alt);
+      border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .session-item .session-date { font-size: .8rem; font-weight: 600; }
+    .session-item .session-dur { font-size: .8rem; opacity: .7; }
+    .session-item .session-note { font-size: .75rem; opacity: .6; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient particles -->
+  <canvas id="ambient-canvas"></canvas>
+  <!-- Confetti -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <h1><span class="accent">Cozy</span> <span class="accent2">Color</span> Companion</h1>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btn-mute" title="Mute/Unmute">&#128266;</button>
+      <a href="index.html" class="icon-btn" title="Cozy Draw">&#127912;</a>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="content" id="content">
+
+    <!-- Dashboard Tab -->
+    <div class="tab-panel active" id="tab-dashboard"></div>
+
+    <!-- Ambient Tab -->
+    <div class="tab-panel" id="tab-ambient"></div>
+
+    <!-- Kleuren Tab -->
+    <div class="tab-panel" id="tab-kleuren"></div>
+
+    <!-- Sessie Tab -->
+    <div class="tab-panel" id="tab-sessie"></div>
+
+    <!-- Lessen Tab -->
+    <div class="tab-panel" id="tab-lessen"></div>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-tab active" data-tab="dashboard">
+      <span class="nav-icon">&#127968;</span>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-tab" data-tab="ambient">
+      <span class="nav-icon">&#127925;</span>
+      <span>Ambient</span>
+    </button>
+    <button class="nav-tab" data-tab="kleuren">
+      <span class="nav-icon">&#127912;</span>
+      <span>Kleuren</span>
+    </button>
+    <button class="nav-tab" data-tab="sessie">
+      <span class="nav-icon">&#9202;</span>
+      <span>Sessie</span>
+    </button>
+    <button class="nav-tab" data-tab="lessen">
+      <span class="nav-icon">&#128214;</span>
+      <span>Lessen</span>
+    </button>
+  </nav>
+
+  <!-- Lesson Detail Overlay -->
+  <div class="lesson-overlay" id="lesson-overlay"></div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /* ══════════════════════════════════════════════════
+       COZY COLOR COMPANION - Application Script
+       ══════════════════════════════════════════════════ */
+
+    // ── Tab Navigation ─────────────────────────────
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      const panel = document.getElementById('tab-' + tabId);
+      if (panel) panel.classList.add('active');
+      const btn = document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+      if (btn) btn.classList.add('active');
+    }
+
+    document.getElementById('bottom-nav').addEventListener('click', e => {
+      const tab = e.target.closest('.nav-tab');
+      if (!tab) return;
+      switchTab(tab.dataset.tab);
+    });
+
+    // ── Toast ──────────────────────────────────────
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    // ══ AUDIO ENGINE ═══════════════════════════════════
+    let audioCtx = null;
+    let masterGain = null;
+    let compressor = null;
+    const channels = {};
+    const activeSounds = new Set();
+    let isMuted = false;
+
+    function ensureAudioCtx() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -24;
+      compressor.knee.value = 30;
+      compressor.ratio.value = 12;
+      compressor.connect(audioCtx.destination);
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.5;
+      masterGain.connect(compressor);
+    }
+
+    // Noise buffers (4 seconds, shared)
+    function createNoiseBuffer(type) {
+      ensureAudioCtx();
+      const len = audioCtx.sampleRate * 4;
+      const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+      const data = buf.getChannelData(0);
+      if (type === 'white') {
+        for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      } else if (type === 'pink') {
+        let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+        for (let i = 0; i < len; i++) {
+          const w = Math.random() * 2 - 1;
+          b0 = 0.99886*b0 + w*0.0555179;
+          b1 = 0.99332*b1 + w*0.0750759;
+          b2 = 0.96900*b2 + w*0.1538520;
+          b3 = 0.86650*b3 + w*0.3104856;
+          b4 = 0.55000*b4 + w*0.5329522;
+          b5 = -0.7616*b5 - w*0.0168980;
+          data[i] = (b0+b1+b2+b3+b4+b5+b6+w*0.5362) * 0.11;
+          b6 = w * 0.115926;
+        }
+      } else { // brown
+        let last = 0;
+        for (let i = 0; i < len; i++) {
+          const w = Math.random() * 2 - 1;
+          last = (last + 0.02 * w) / 1.02;
+          data[i] = last * 3.5;
+        }
+      }
+      return buf;
+    }
+
+    let noiseBufs = {};
+    function getNoiseBuffer(type) {
+      if (!noiseBufs[type]) noiseBufs[type] = createNoiseBuffer(type);
+      return noiseBufs[type];
+    }
+
+    function makeNoiseSource(type) {
+      const src = audioCtx.createBufferSource();
+      src.buffer = getNoiseBuffer(type);
+      src.loop = true;
+      return src;
+    }
+
+    // ── Sound Creators ─────────────────────────────
+    const soundCreators = {
+      rain() {
+        const g = audioCtx.createGain(); g.gain.value = 0.7;
+        // Body: brown noise lowpassed
+        const body = makeNoiseSource('brown');
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 600;
+        body.connect(lp); lp.connect(g);
+        // Drops: white noise bandpassed
+        const drops = makeNoiseSource('white');
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.8;
+        const dg = audioCtx.createGain(); dg.gain.value = 0.15;
+        drops.connect(bp); bp.connect(dg); dg.connect(g);
+        // LFO on drops gain
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine'; lfo.frequency.value = 0.3;
+        const lfoG = audioCtx.createGain(); lfoG.gain.value = 0.08;
+        lfo.connect(lfoG); lfoG.connect(dg.gain);
+        body.start(); drops.start(); lfo.start();
+        return { gain: g, stop() { body.stop(); drops.stop(); lfo.stop(); } };
+      },
+      fire() {
+        const g = audioCtx.createGain(); g.gain.value = 0.6;
+        // Body: brown noise lowpassed
+        const body = makeNoiseSource('brown');
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 300;
+        const bg = audioCtx.createGain(); bg.gain.value = 0.8;
+        body.connect(lp); lp.connect(bg); bg.connect(g);
+        // Crackle: white noise highpassed, stochastic gain
+        const crackle = makeNoiseSource('white');
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 2000;
+        const cg = audioCtx.createGain(); cg.gain.value = 0.0;
+        crackle.connect(hp); hp.connect(cg); cg.connect(g);
+        body.start(); crackle.start();
+        // Stochastic crackle
+        let crackleTimer;
+        function doCrackle() {
+          const now = audioCtx.currentTime;
+          cg.gain.setValueAtTime(0.15 + Math.random() * 0.2, now);
+          cg.gain.exponentialRampToValueAtTime(0.001, now + 0.05 + Math.random() * 0.08);
+          hp.frequency.value = 1000 + Math.random() * 7000;
+          crackleTimer = setTimeout(doCrackle, 80 + Math.random() * 300);
+        }
+        doCrackle();
+        return { gain: g, stop() { body.stop(); crackle.stop(); clearTimeout(crackleTimer); } };
+      },
+      forest() {
+        const g = audioCtx.createGain(); g.gain.value = 0.5;
+        // Wind: bandpass noise
+        const wind = makeNoiseSource('pink');
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 400; bp.Q.value = 0.5;
+        const wg = audioCtx.createGain(); wg.gain.value = 0.3;
+        wind.connect(bp); bp.connect(wg); wg.connect(g);
+        // Wind LFO
+        const wlfo = audioCtx.createOscillator();
+        wlfo.type = 'sine'; wlfo.frequency.value = 0.15;
+        const wlfoG = audioCtx.createGain(); wlfoG.gain.value = 0.15;
+        wlfo.connect(wlfoG); wlfoG.connect(wg.gain);
+        wind.start(); wlfo.start();
+        // Birds: oscillator chirps
+        let birdTimer;
+        function doBird() {
+          if (!audioCtx) return;
+          const osc = audioCtx.createOscillator();
+          const bg2 = audioCtx.createGain();
+          osc.type = 'sine';
+          const baseF = 2000 + Math.random() * 2000;
+          osc.frequency.value = baseF;
+          bg2.gain.value = 0.08;
+          osc.connect(bg2); bg2.connect(g);
+          const now = audioCtx.currentTime;
+          osc.frequency.setValueAtTime(baseF, now);
+          osc.frequency.exponentialRampToValueAtTime(baseF * (0.8 + Math.random() * 0.5), now + 0.15);
+          bg2.gain.exponentialRampToValueAtTime(0.001, now + 0.2 + Math.random() * 0.15);
+          osc.start(now);
+          osc.stop(now + 0.4);
+          birdTimer = setTimeout(doBird, 1500 + Math.random() * 4000);
+        }
+        doBird();
+        return { gain: g, stop() { wind.stop(); wlfo.stop(); clearTimeout(birdTimer); } };
+      },
+      ocean() {
+        const g = audioCtx.createGain(); g.gain.value = 0.6;
+        const src = makeNoiseSource('brown');
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 0.3;
+        src.connect(bp); bp.connect(g);
+        // Wave LFO 1
+        const lfo1 = audioCtx.createOscillator();
+        lfo1.type = 'sine'; lfo1.frequency.value = 0.08;
+        const lfoG1 = audioCtx.createGain(); lfoG1.gain.value = 300;
+        lfo1.connect(lfoG1); lfoG1.connect(bp.frequency);
+        // Wave LFO 2 (gain)
+        const lfo2 = audioCtx.createOscillator();
+        lfo2.type = 'sine'; lfo2.frequency.value = 0.11;
+        const lfoG2 = audioCtx.createGain(); lfoG2.gain.value = 0.25;
+        lfo2.connect(lfoG2); lfoG2.connect(g.gain);
+        src.start(); lfo1.start(); lfo2.start();
+        return { gain: g, stop() { src.stop(); lfo1.stop(); lfo2.stop(); } };
+      },
+      wind() {
+        const g = audioCtx.createGain(); g.gain.value = 0.5;
+        const src = makeNoiseSource('white');
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.4;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 200;
+        src.connect(bp); bp.connect(hp); hp.connect(g);
+        // Three LFOs for turbulence
+        const lfos = [0.07, 0.13, 0.19].map(f => {
+          const l = audioCtx.createOscillator();
+          l.type = 'sine'; l.frequency.value = f;
+          return l;
+        });
+        const lg1 = audioCtx.createGain(); lg1.gain.value = 400;
+        lfos[0].connect(lg1); lg1.connect(bp.frequency);
+        const lg2 = audioCtx.createGain(); lg2.gain.value = 0.2;
+        lfos[1].connect(lg2); lg2.connect(g.gain);
+        const lg3 = audioCtx.createGain(); lg3.gain.value = 100;
+        lfos[2].connect(lg3); lg3.connect(hp.frequency);
+        src.start(); lfos.forEach(l => l.start());
+        return { gain: g, stop() { src.stop(); lfos.forEach(l => l.stop()); } };
+      },
+      lofi() {
+        const g = audioCtx.createGain(); g.gain.value = 0.35;
+        // Cmaj7 chord: C4, E4, G4, B4 with 3 detuned voices each
+        const notes = [261.63, 329.63, 392.00, 493.88];
+        const oscs = [];
+        notes.forEach(f => {
+          [-3, 0, 3].forEach(detune => {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.value = f;
+            osc.detune.value = detune;
+            const og = audioCtx.createGain();
+            og.gain.value = 0.07;
+            osc.connect(og); og.connect(g);
+            osc.start();
+            oscs.push(osc);
+          });
+        });
+        // Warmth filter with LFO
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 800;
+        g.disconnect();
+        const preG = audioCtx.createGain(); preG.gain.value = 1;
+        oscs.forEach(() => {}); // already connected to g
+        g.connect(lp);
+        const outG = audioCtx.createGain(); outG.gain.value = 1;
+        lp.connect(outG);
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine'; lfo.frequency.value = 0.2;
+        const lfoG = audioCtx.createGain(); lfoG.gain.value = 300;
+        lfo.connect(lfoG); lfoG.connect(lp.frequency);
+        lfo.start();
+        return { gain: outG, stop() { oscs.forEach(o => o.stop()); lfo.stop(); } };
+      }
+    };
+
+    function toggleSound(id) {
+      ensureAudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (activeSounds.has(id)) {
+        // Stop
+        if (channels[id]) { channels[id].stop(); channels[id].gain.disconnect(); delete channels[id]; }
+        activeSounds.delete(id);
+      } else {
+        // Start
+        const ch = soundCreators[id]();
+        ch.gain.connect(masterGain);
+        channels[id] = ch;
+        activeSounds.add(id);
+      }
+      renderAmbientTab();
+      saveSettings();
+    }
+
+    function setMasterVolume(val) {
+      if (masterGain) masterGain.gain.value = val / 100;
+      saveSettings();
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      if (audioCtx) {
+        if (isMuted) audioCtx.suspend();
+        else audioCtx.resume();
+      }
+      document.getElementById('btn-mute').textContent = isMuted ? '\u{1F507}' : '\u{1F50A}';
+      document.getElementById('btn-mute').classList.toggle('muted', isMuted);
+      saveSettings();
+    }
+
+    document.getElementById('btn-mute').addEventListener('click', toggleMute);
+
+    // iOS Safari unlock
+    function unlockAudio() {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    }
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
+    // Handle visibility change (iOS interrupted)
+    document.addEventListener('visibilitychange', () => {
+      if (audioCtx && !isMuted && document.visibilityState === 'visible') {
+        audioCtx.resume();
+      }
+    });
+
+    // ══ STATE MANAGEMENT ═════════════════════════════
+    const STORE_KEY = 'cozyCompanion';
+
+    function loadState() {
+      try {
+        return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultState();
+      } catch { return defaultState(); }
+    }
+
+    function defaultState() {
+      return {
+        lessons: {},
+        sessions: [],
+        streak: { current: 0, best: 0, lastDate: null },
+        settings: { volume: 50, muted: false, activeSounds: [] }
+      };
+    }
+
+    function saveAppState() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(appState));
+    }
+
+    function saveSettings() {
+      appState.settings.volume = masterGain ? Math.round(masterGain.gain.value * 100) : 50;
+      appState.settings.muted = isMuted;
+      appState.settings.activeSounds = [...activeSounds];
+      saveAppState();
+    }
+
+    const appState = loadState();
+
+    // Restore settings on load
+    (function restoreSettings() {
+      isMuted = appState.settings.muted || false;
+      if (isMuted) {
+        document.getElementById('btn-mute').textContent = '\u{1F507}';
+        document.getElementById('btn-mute').classList.add('muted');
+      }
+    })();
+
+    // ══ COLOR PALETTES ════════════════════════════════
+    const palettes = [
+      { name: 'Herfstwarmte', emoji: '\u{1F342}', colors: [
+        {hex:'#6B3A2A',name:'Kastanje'},{hex:'#C68642',name:'Kaneel'},{hex:'#D4B483',name:'Zand'},
+        {hex:'#D4A017',name:'Goudgeel'},{hex:'#A0522D',name:'Baksteenrood'},{hex:'#6B8E23',name:'Mosgroen'}
+      ]},
+      { name: 'Wintermagie', emoji: '\u{2744}\uFE0F', colors: [
+        {hex:'#A8D8EA',name:'IJsblauw'},{hex:'#F0F0F0',name:'Sneeuwwit'},{hex:'#2E5339',name:'Dennegroen'},
+        {hex:'#8B1A4A',name:'Bessenrood'},{hex:'#B0B0B0',name:'Zilvergrijs'},{hex:'#1B3A5C',name:'Nachtblauw'}
+      ]},
+      { name: 'Lentefris', emoji: '\u{1F338}', colors: [
+        {hex:'#98D8C8',name:'Mintgroen'},{hex:'#F7CAC9',name:'Zachtroze'},{hex:'#B8A9C9',name:'Lavendel'},
+        {hex:'#FFF44F',name:'Citroengeel'},{hex:'#F08080',name:'Lichtkoraal'},{hex:'#87CEEB',name:'Hemelsblauw'}
+      ]},
+      { name: 'Zomeravond', emoji: '\u{1F305}', colors: [
+        {hex:'#E8751A',name:'Warm oranje'},{hex:'#E76F6F',name:'Koraalrood'},{hex:'#40E0D0',name:'Turquoise'},
+        {hex:'#DAA520',name:'Goud'},{hex:'#D2B48C',name:'Zandbeige'},{hex:'#4B0082',name:'Dieppaars'}
+      ]},
+      { name: 'Pastel Droom', emoji: '\u{1F4AD}', colors: [
+        {hex:'#FFB6C1',name:'Pastelroze'},{hex:'#AEC6CF',name:'Pastelblauw'},{hex:'#FFFACD',name:'Pastelgeel'},
+        {hex:'#B2F2BB',name:'Pastelgroen'},{hex:'#D8B4FE',name:'Pastelpaars'},{hex:'#FFB4A2',name:'Pastelkoraal'}
+      ]},
+      { name: 'Aardse Tinten', emoji: '\u{1F30D}', colors: [
+        {hex:'#C1440E',name:'Terracotta'},{hex:'#6B8E23',name:'Olijfgroen'},{hex:'#6F4E37',name:'Warmbruin'},
+        {hex:'#CC7722',name:'Okergeel'},{hex:'#808080',name:'Steengrijs'},{hex:'#B7410E',name:'Roestoranje'}
+      ]},
+      { name: 'Bessen & Bloemen', emoji: '\u{1F33A}', colors: [
+        {hex:'#C72C48',name:'Frambozenrood'},{hex:'#673147',name:'Pruimenpaars'},{hex:'#E8A0BF',name:'Pioenroze'},
+        {hex:'#4F7942',name:'Bladgroen'},{hex:'#B784A7',name:'Mauve'},{hex:'#5C0029',name:'Bordeaux'}
+      ]},
+      { name: 'Oceaan Bries', emoji: '\u{1F3D6}\uFE0F', colors: [
+        {hex:'#003366',name:'Diepblauw'},{hex:'#2E8B57',name:'Zeegroen'},{hex:'#FFFDD0',name:'Schuimwit'},
+        {hex:'#F88379',name:'Koraalpink'},{hex:'#C9B037',name:'Zandgoud'},{hex:'#7FFFD4',name:'Aquamarijn'}
+      ]}
+    ];
+
+    function renderKleurenTab() {
+      const el = document.getElementById('tab-kleuren');
+      el.innerHTML = `
+        <h2 style="margin-bottom:14px;">Kleurpaletten</h2>
+        <p style="font-size:.83rem;opacity:.7;margin-bottom:14px;">Tik op een kleur om de hex-code te kopiëren.</p>
+        ${palettes.map(p => `
+          <div class="palette-card">
+            <h3>${p.emoji} ${p.name}</h3>
+            <div class="palette-swatches">
+              ${p.colors.map(c => `
+                <div class="palette-swatch" style="background:${c.hex}" data-hex="${c.hex}" data-name="${c.name}" title="${c.name}: ${c.hex}">
+                  <span class="hex-label">${c.hex}</span>
+                </div>`).join('')}
+            </div>
+          </div>`).join('')}`;
+      el.querySelectorAll('.palette-swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(sw.dataset.hex).then(() => {
+              showToast(sw.dataset.name + ' gekopieerd: ' + sw.dataset.hex);
+            });
+          } else {
+            showToast(sw.dataset.name + ': ' + sw.dataset.hex);
+          }
+        });
+      });
+    }
+
+    // ══ SESSION TIMER ═════════════════════════════════
+    let timerInterval = null;
+    let timerSeconds = 0;
+    let timerRunning = false;
+    let timerPaused = false;
+    let pauseReminderTimeout = null;
+
+    function fmtTime(s) {
+      const h = Math.floor(s/3600);
+      const m = Math.floor((s%3600)/60);
+      const sec = s % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+
+    function startTimer() {
+      if (timerRunning && !timerPaused) return;
+      timerRunning = true;
+      timerPaused = false;
+      timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+      setPauseReminder();
+      renderSessieTab();
+    }
+
+    function pauseTimer() {
+      if (!timerRunning || timerPaused) return;
+      timerPaused = true;
+      clearInterval(timerInterval);
+      clearTimeout(pauseReminderTimeout);
+      renderSessieTab();
+    }
+
+    function stopTimer() {
+      if (!timerRunning) return;
+      clearInterval(timerInterval);
+      clearTimeout(pauseReminderTimeout);
+      // Save session if ≥ 5 seconds
+      if (timerSeconds >= 5) {
+        const notes = document.getElementById('session-notes')?.value || '';
+        const session = {
+          date: new Date().toISOString().slice(0, 10),
+          duration: timerSeconds,
+          notes: notes
+        };
+        appState.sessions.unshift(session);
+        // Update streak
+        updateStreak(session.date, timerSeconds);
+        saveAppState();
+        showToast('Sessie opgeslagen! ' + fmtTime(timerSeconds));
+      }
+      timerSeconds = 0;
+      timerRunning = false;
+      timerPaused = false;
+      renderSessieTab();
+    }
+
+    function updateTimerDisplay() {
+      const disp = document.getElementById('timer-display');
+      if (disp) disp.textContent = fmtTime(timerSeconds);
+    }
+
+    function setPauseReminder() {
+      clearTimeout(pauseReminderTimeout);
+      pauseReminderTimeout = setTimeout(() => {
+        showToast('Tijd voor een pauze! Rek je even uit.');
+      }, 30 * 60 * 1000); // 30 minutes
+    }
+
+    function updateStreak(dateStr, duration) {
+      if (duration < 300) return; // min 5 minutes for streak
+      const streak = appState.streak;
+      const today = dateStr;
+      if (streak.lastDate === today) return; // already counted today
+      const yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().slice(0, 10);
+      if (streak.lastDate === yesterday) {
+        streak.current++;
+      } else if (streak.lastDate !== today) {
+        streak.current = 1;
+      }
+      streak.best = Math.max(streak.best, streak.current);
+      streak.lastDate = today;
+    }
+
+    function renderSessieTab() {
+      const el = document.getElementById('tab-sessie');
+      const sessieStats = getSessionStats();
+      el.innerHTML = `
+        <h2 style="margin-bottom:14px;">Sessie Timer</h2>
+        <div class="card" style="text-align:center;">
+          <div class="timer-display" id="timer-display">${fmtTime(timerSeconds)}</div>
+          <div class="timer-controls">
+            ${!timerRunning ? `<button class="btn btn-primary" id="timer-start">Start</button>` :
+              timerPaused ? `<button class="btn btn-primary" id="timer-start">Hervat</button>` :
+              `<button class="btn" id="timer-pause">Pauze</button>`}
+            ${timerRunning ? `<button class="btn" id="timer-stop">Stop & Opslaan</button>` : ''}
+          </div>
+          ${timerRunning ? `<textarea class="session-notes" id="session-notes" placeholder="Wat kleur je vandaag?"></textarea>` : ''}
+        </div>
+        <div class="card">
+          <h3>Statistieken</h3>
+          <div class="stats-grid" style="margin-top:10px;">
+            <div class="stat-card"><div class="stat-value">${sessieStats.total}</div><div class="stat-label">Sessies</div></div>
+            <div class="stat-card"><div class="stat-value">${sessieStats.totalTime}</div><div class="stat-label">Totale tijd</div></div>
+            <div class="stat-card"><div class="stat-value">${sessieStats.avg}</div><div class="stat-label">Gem. duur</div></div>
+            <div class="stat-card"><div class="stat-value">${appState.streak.current}${appState.streak.current >= 7 ? ' \u{1F525}' : ''}</div><div class="stat-label">Streak (dagen)</div></div>
+          </div>
+        </div>
+        ${appState.sessions.length > 0 ? `
+          <div class="card">
+            <h3>Geschiedenis</h3>
+            ${appState.sessions.slice(0, 10).map(s => `
+              <div class="session-item">
+                <div>
+                  <div class="session-date">${s.date}</div>
+                  ${s.notes ? `<div class="session-note">${escHtml(s.notes)}</div>` : ''}
+                </div>
+                <div class="session-dur">${fmtTime(s.duration)}</div>
+              </div>`).join('')}
+          </div>` : ''}`;
+      // Wire timer buttons
+      const startBtn = document.getElementById('timer-start');
+      const pauseBtn = document.getElementById('timer-pause');
+      const stopBtn = document.getElementById('timer-stop');
+      if (startBtn) startBtn.addEventListener('click', startTimer);
+      if (pauseBtn) pauseBtn.addEventListener('click', pauseTimer);
+      if (stopBtn) stopBtn.addEventListener('click', stopTimer);
+    }
+
+    function getSessionStats() {
+      const sessions = appState.sessions;
+      const total = sessions.length;
+      const totalSec = sessions.reduce((a, s) => a + s.duration, 0);
+      const avgSec = total > 0 ? Math.round(totalSec / total) : 0;
+      return {
+        total,
+        totalTime: totalSec >= 3600 ? Math.round(totalSec/3600*10)/10 + 'u' : Math.round(totalSec/60) + 'm',
+        avg: avgSec >= 3600 ? Math.round(avgSec/3600*10)/10 + 'u' : Math.round(avgSec/60) + 'm'
+      };
+    }
+
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ── Render Ambient Tab ─────────────────────────
+    const soundDefs = [
+      { id: 'rain',   icon: '\u{1F327}\uFE0F', name: 'Regen' },
+      { id: 'fire',   icon: '\u{1F525}',        name: 'Haardvuur' },
+      { id: 'forest', icon: '\u{1F332}',        name: 'Bos' },
+      { id: 'ocean',  icon: '\u{1F30A}',        name: 'Oceaan' },
+      { id: 'wind',   icon: '\u{1F343}',        name: 'Wind' },
+      { id: 'lofi',   icon: '\u{1F3B5}',        name: 'Lo-fi' }
+    ];
+
+    function renderAmbientTab() {
+      const el = document.getElementById('tab-ambient');
+      const vol = masterGain ? Math.round(masterGain.gain.value * 100) : 50;
+      el.innerHTML = `
+        <h2 style="margin-bottom:14px;">Ambient Geluiden</h2>
+        <p style="font-size:.83rem;opacity:.7;margin-bottom:14px;">Combineer geluiden voor jouw perfecte sfeer.</p>
+        <div class="sound-grid">
+          ${soundDefs.map(s => `
+            <div class="sound-card ${activeSounds.has(s.id)?'active':''}" data-sound="${s.id}">
+              <span class="sound-icon">${s.icon}</span>
+              <span class="sound-name">${s.name}</span>
+            </div>`).join('')}
+        </div>
+        <div class="card">
+          <div class="volume-row">
+            <label>Volume</label>
+            <input type="range" min="0" max="100" value="${vol}" id="master-vol">
+            <span style="font-size:.75rem;width:30px;text-align:right;">${vol}%</span>
+          </div>
+        </div>`;
+      // Wire events
+      el.querySelectorAll('.sound-card').forEach(c => {
+        c.addEventListener('click', () => toggleSound(c.dataset.sound));
+      });
+      const volSlider = document.getElementById('master-vol');
+      if (volSlider) {
+        volSlider.addEventListener('input', () => {
+          setMasterVolume(+volSlider.value);
+          volSlider.nextElementSibling.textContent = volSlider.value + '%';
+        });
+      }
+    }
+
+    // ══ LESSON DATA ══════════════════════════════════
+    const paths = [
+      { id:1, name:'Lijnen & Contouren', icon:'\u270F\uFE0F', badge:'Lijnmeester',
+        desc:'Leer de basis van mooie, zekere lijnen en ontdek hoe contouren en patronen je kleurwerk tot leven brengen.',
+        lessons:[
+        { id:'1-1', title:'Basislijnen', desc:'Een goede lijn begint bij een ontspannen hand en de juiste houding van je stift. Houd je marker losjes vast en beweeg vanuit je pols of elleboog. Rechte lijnen, zachte curves, golven en zigzaggen zijn de bouwstenen van elk kleurwerk.', tips:['Leg je pink zacht op het papier als anker voor stabiliteit.','Trek lijnen in \xe9\xe9n vloeiende beweging.','Draai het papier zodat de beweging natuurlijk aanvoelt.'], exercise:'Teken rijen van rechte lijnen, golven en zigzag op los papier. Probeer ze daarna in je kleurboek als warming-up.' },
+        { id:'1-2', title:'Contouren tekenen', desc:'Contouren geven ingekleurde vlakken een scherpe uitstraling. Gelijkmatige druk en een rustig tempo zijn het geheim. Volg de vorm met je ogen net vooruit op je stift.', tips:['Zet je stift eerst neer op het startpunt.','Gebruik een mok als sjabloon voor cirkels.','Een fijne liner van 0,3\u20130,5 mm werkt het best.'], exercise:'Teken contouren van een bloemblaadje na met een fijne stift. Vergelijk met een vlak zonder omlijning.' },
+        { id:'1-3', title:'Patronen maken', desc:'Herhalende patronen zijn meditief en bouwen techniek op. Stippen, strepen, cirkeltjes en bladvormen kun je eindeloos combineren. Kleine onregelmatigheden geven juist charme.', tips:['Werk van boven naar beneden tegen uitvegen.','Wissel de grootte af voor levendigheid.','Gebruik een contrasterende kleur.'], exercise:'Vul een groot vlak in je kleurboek met een herhalend patroon van stippen en streepjes. Wissel kleuren af.' },
+        { id:'1-4', title:'Decoratieve randen', desc:'Een mooie rand maakt het geheel af, als een lijst om een schilderij. Combineer eenvoudige elementen: rechte lijnen met blokjes, bloemetjes met stippen.', tips:['Teken eerst de hoeken voor symmetrie.','Combineer een dikke en dunne stift.','Houd het eenvoudig \u2014 \xe9\xe9n of twee elementen.'], exercise:'Omlijst een pagina met een decoratieve rand. Kleed de hoeken aan met een klein accent.' }
+      ]},
+      { id:2, name:'Kleur & Inkleuren', icon:'\u{1F3A8}', badge:'Kleurkenner',
+        desc:'Ontdek de magie van kleur en leer vlakken gelijkmatig en levendig inkleuren.',
+        lessons:[
+        { id:'2-1', title:'Kleur basics', desc:'De kleurencirkel is je beste vriend. Warme kleuren voelen energiek, koele kleuren stralen rust uit. Complementaire kleuren zorgen voor prachtig contrast.', tips:['Leg stiften naast elkaar op papier om te testen.','Beperk je tot drie of vier kleuren per afbeelding.','Een vleugje complementaire kleur in schaduwen maakt het levendiger.'], exercise:'Kies een illustratie en bepaal een warm of koel palet. Kleur volledig in dat palet.' },
+        { id:'2-2', title:'Egaal inkleuren', desc:'Consistente druk, vaste bewegingsrichting en overlappende halen geven professioneel resultaat. Werk snel van nat naar nat op grotere vlakken.', tips:['Kleur in dezelfde richting binnen een vlak.','Werk snel zodat inkt nog nat is.','Een tweede laag over droge eerste geeft extra dekking.'], exercise:'Oefen egaal inkleuren in drie richtingen: horizontaal, verticaal en cirkels. Vergelijk de resultaten.' },
+        { id:'2-3', title:'Kleurovergangen', desc:'Begin met de lichtste kleur, laat uitlopen naar middentoon, voeg donkere kleur toe en blend in het midden. Oefen eerst op los papier.', tips:['Gebruik een kleurloze blender marker.','Kies kleuren dicht bij elkaar in de kleurencirkel.','Werk in goed licht.'], exercise:'Teken vijf rechthoeken en oefen overgangen: geel-oranje, roze-paars, lichtblauw-donkerblauw.' },
+        { id:'2-4', title:'Blending', desc:'Blenden is kleuren samensmelten zonder harde grens. Met alcohol markers meng je direct op papier. Bij water-based markers gebruik je een natte kwast.', tips:['Oefen eerst op hetzelfde type papier.','Een kleurloze blender is het meest veelzijdig.','Donkerste kleur altijd als laatste.'], exercise:'Kleur een motief waarbij twee kleuren overlappen in het midden. Blend zo zacht mogelijk.' }
+      ]},
+      { id:3, name:'Licht & Schaduw', icon:'\u{1F4A1}', badge:'Schaduwmeester',
+        desc:'Geef je kleurwerk dimensie door te werken met licht, schaduw en diepte.',
+        lessons:[
+        { id:'3-1', title:'Licht begrijpen', desc:'Elk object heeft een lichtbron nodig. De zijde naar het licht is licht, de afgewende zijde donker. Houd de lichtrichting consequent aan.', tips:['Zet een pijltje buiten je afbeelding als geheugensteun.','De lichtste plek mag je soms wit laten.','Begin met basiskleur, dan licht en schaduw.'], exercise:'Zoek een ronde vorm en bepaal dat licht van linksboven komt. Kleur links licht, rechts donker.' },
+        { id:'3-2', title:'Schaduwen tekenen', desc:'Schaduw is een bewuste keuze van toon en plaatsing. Gebruik extra lagen of een koelere tint. Scherpere overgang suggereert harder licht.', tips:['Gebruik een koelere tint voor schaduwen.','Laat een strip basiskleur bij de rand.','Schaduwlagen op droge onderlaag.'], exercise:'Kleur een object in basistint en voeg aan \xe9\xe9n zijde drie lagen donkerte toe.' },
+        { id:'3-3', title:'Diepte cre\xebren', desc:'Voorgrond: groter en donkerder. Achtergrond: lichter en minder scherp. Overlapping laat elementen achter andere verdwijnen.', tips:['Achtergrond altijd lichter dan voorgrond.','Meer details dichtbij, verre elementen vaag.','Lichte nevel op achtergrond cre\xebert afstand.'], exercise:'Zoek een afbeelding met lagen. Kleur achteraan licht, werk naar voren toe steeds donkerder.' },
+        { id:'3-4', title:'Sfeerverlichting', desc:'Kaarslicht: warm geel/oranje met koele schaduwen. Gouden uur: roze en amber. Koel licht: rustige sfeer. Kies bewust een lichtsfeer.', tips:['Kaarslicht: geel, oranje en amber.','Koele schaduwen naast warm licht versterken contrast.','Test kleuren op los papier eerst.'], exercise:'Kies een interieur-illustratie en bepaal het lichttype. Kleur verlichte vlakken in passende tinten.' }
+      ]},
+      { id:4, name:'Cozy Elementen', icon:'\u{1F56F}\uFE0F', badge:'Cozy Creator',
+        desc:'Breng knusse details tot leven: dampende mokken, kaarsgloed, zachte texturen.',
+        lessons:[
+        { id:'4-1', title:'Kopjes & mokken', desc:'Begin met de basistint en bouw rondheid op met licht en schaduw. Stoom: lichte golvende lijnen. Reflecties: kleine lichte vlakjes met witte gelpen.', tips:['Warm beige als basiskleur voor keramiek.','Wit vlakje als reflectie op de bovenste rand.','Stoom met lichte hand, onderbreek de lijn.'], exercise:'Zoek een mok in je kleurboek en kleur volledig in, inclusief stoom en reflectie.' },
+        { id:'4-2', title:'Kaarsen & lantaarns', desc:'Vlam in geel en oranje met wit hart. Gloed: zachte cirkel die vervaagt. Kaars: cr\xe8mekleurig met schaduwen in lichtgrijs of lavendel.', tips:['Gloed als zachte aureool in geel en oranje.','Geel op nabije objecten voor weerkaatsing.','Korte organische lijnen voor gesmolten wax.'], exercise:'Kleur een kaars en focus op de gloed. Voeg warm geel toe op nabije objecten als lichtreflectie.' },
+        { id:'4-3', title:'Texturen', desc:'Breiwerk: kleine V-vormpjes. Hout: onregelmatige parallelle lijnen. Stof: zachte schaduw. Bont: streepjes in alle richtingen. Herhaling en geduld.', tips:['Textuurlijnen mee in richting van het oppervlak.','Fijne liner voor details, brede marker voor basis.','Witte vlakjes voor lichteffect.'], exercise:'Zoek een object met textuur en boots het na met herhalende markeringen bovenop de basiskleur.' },
+        { id:'4-4', title:'Seizoenssfeer', desc:'Herfst: warme roodbruinen en goudgelen. Winter: wit en ijsblauw. Lente: zachte pastels. Kies bewust een seizoenssfeer.', tips:['Maak per seizoen een palet van drie tot vijf stiften.','Herfstbladeren: meerdere kleuren per blad.','Witte gelpen voor sneeuwvlokken en glitter.'], exercise:'Kies een seizoen, zoek een passende pagina, stel een palet van vier kleuren samen en kleur volledig in.' }
+      ]},
+      { id:5, name:'Finishing Touches', icon:'\u2728', badge:'Afwerkmeester',
+        desc:'Leer accenten plaatsen, compositie voelen en jouw eigen stijl ontwikkelen.',
+        lessons:[
+        { id:'5-1', title:'Accenten plaatsen', desc:'Een wit stipje als highlight, een gouden rand, een lichtflits. Gebruik witte gelpen of posca marker. Minder is meer.', tips:['Accenten als allerlaatste stap.','Test je gelpen op schoonpapier.','Gouden en zilveren pennen op donkere vlakken.'], exercise:'Voeg met een witte gelpen vijf gerichte accenten toe aan een al ingekleurde pagina.' },
+        { id:'5-2', title:'Compositie', desc:'Focal point: krachtige kleuren of hoog contrast. Minder belangrijke elementen in rustige tinten. Kleurgewicht voor balans.', tips:['Check waar je oog als eerste naartoe gaat.','Donkerste tonen spaarzaam rond focal point.','Herhaal een kleur op minstens twee plekken.'], exercise:'Kies welk element het focal point is. Kleur dat levendig, de rest in kalmere tinten.' },
+        { id:'5-3', title:'Stijl ontwikkelen', desc:'Jouw stijl is je unieke combinatie van paletten, blendtechniek en textuurvoorkeuren. Blijf maken en experimenteren.', tips:['Maak een moodboard met inspiratie.','Nieuwe technieken eerst op los papier.','Reflecteer na elke pagina.'], exercise:'Combineer bewust drie geleerde technieken op \xe9\xe9n pagina. Laat het resultaat zijn wat het is.' },
+        { id:'5-4', title:'Het meesterwerk', desc:'Alles samenvoegen: lijnen, kleur, licht, textuur, sfeer en compositie. Kies een pagina die je echt mooi vindt. Er is geen perfecte uitkomst, alleen jouw uitkomst.', tips:['Plan vooraf: lichtbron, palet, focal point.','Zet favoriete muziek aan.','Fotografeer het resultaat om te vieren.'], exercise:'Kies je meest geliefde pagina en kleur hem volledig met alle geleerde technieken. Geniet van elk moment.' }
+      ]}
+    ];
+
+    // ══ LESSON LOGIC ══════════════════════════════════
+    function isLessonUnlocked(id) {
+      const [p, n] = id.split('-').map(Number);
+      if (n === 1) return true;
+      return appState.lessons[p+'-'+(n-1)]?.completed || false;
+    }
+    function isCompleted(id) { return appState.lessons[id]?.completed || false; }
+    function getStars(id) { return appState.lessons[id]?.stars || 0; }
+    function totalStars() { return Object.values(appState.lessons).reduce((a,l) => a + (l.stars||0), 0); }
+    function completedCount() { return Object.values(appState.lessons).filter(l => l.completed).length; }
+
+    function completeLesson(id, stars) {
+      if (!appState.lessons[id]) appState.lessons[id] = { completed:false, stars:0 };
+      appState.lessons[id].completed = true;
+      appState.lessons[id].stars = Math.max(appState.lessons[id].stars, stars);
+      saveAppState();
+      showToast(stars===3?'Top! \u2B50\u2B50\u2B50':stars===2?'Ging goed! \u2B50\u2B50':'Geprobeerd! \u2B50');
+      const [pId] = id.split('-').map(Number);
+      const path = paths.find(p => p.id === pId);
+      if (path && path.lessons.every(l => isCompleted(l.id)))
+        setTimeout(() => showToast('Badge: '+path.badge+'!'), 1000);
+      if (paths.every(p => p.lessons.every(l => isCompleted(l.id))))
+        setTimeout(() => { showToast('Cozy Master!'); fireConfetti(); }, 2000);
+    }
+
+    // ── Render Lessen Tab ──────────────────────────
+    function renderLessenTab() {
+      const el = document.getElementById('tab-lessen');
+      el.innerHTML = '<h2 style="margin-bottom:14px;">Leerpaden</h2>' +
+        '<p style="font-size:.83rem;opacity:.7;margin-bottom:14px;">20 lessen in 5 paden. Voltooi lessen om de volgende te ontgrendelen.</p>' +
+        paths.map(p => {
+          const done = p.lessons.filter(l => isCompleted(l.id)).length;
+          const earned = done === p.lessons.length;
+          return '<div class="path-card">' +
+            '<div class="path-header">' +
+              '<span class="path-icon">'+p.icon+'</span>' +
+              '<span class="path-name">'+p.name+'</span>' +
+              '<span class="path-badge '+(earned?'earned':'')+'">'+
+                (earned?'\u2B50 '+p.badge:'\u{1F512} '+p.badge)+'</span>' +
+            '</div>' +
+            '<div class="path-progress"><div class="path-progress-fill" style="width:'+(done/4*100)+'%"></div></div>' +
+            '<div class="lesson-list">' +
+              p.lessons.map(l => {
+                const unlocked = isLessonUnlocked(l.id);
+                const comp = isCompleted(l.id);
+                const s = getStars(l.id);
+                return '<div class="lesson-item '+(comp?'completed ':'')+(!unlocked?'locked ':'')+'" data-lesson="'+l.id+'">' +
+                  '<div class="lesson-status">'+(comp?'\u2714':unlocked?l.id.split('-')[1]:'\u{1F512}')+'</div>' +
+                  '<div class="lesson-info"><div class="lesson-title">'+l.title+'</div>' +
+                  (comp?'<div class="lesson-stars">'+'\u2B50'.repeat(s)+'\u2606'.repeat(3-s)+'</div>':'') +
+                  '</div></div>';
+              }).join('') +
+            '</div></div>';
+        }).join('');
+      el.querySelectorAll('.lesson-item:not(.locked)').forEach(item => {
+        item.addEventListener('click', () => openLesson(item.dataset.lesson));
+      });
+    }
+
+    // ── Lesson Detail Overlay ──────────────────────
+    function openLesson(lessonId) {
+      let lesson=null, pathObj=null;
+      for (const p of paths) { const l=p.lessons.find(l=>l.id===lessonId); if(l){lesson=l;pathObj=p;break;} }
+      if (!lesson) return;
+      const ov = document.getElementById('lesson-overlay');
+      const comp = isCompleted(lessonId);
+      const s = getStars(lessonId);
+      ov.innerHTML =
+        '<div class="lesson-header">' +
+          '<button class="back-btn" id="lesson-back">\u2190</button>' +
+          '<div><strong>'+pathObj.icon+' '+pathObj.name+'</strong> <span style="opacity:.6;font-size:.8rem;">\u2014 Les '+lessonId.split('-')[1]+'</span></div>' +
+        '</div>' +
+        '<div class="lesson-body">' +
+          '<h2>'+lesson.title+'</h2>' +
+          '<p>'+lesson.desc+'</p>' +
+          '<h3 style="font-size:.9rem;margin:14px 0 8px;">Tips</h3>' +
+          '<ul>'+lesson.tips.map(t=>'<li>'+t+'</li>').join('')+'</ul>' +
+          '<div class="exercise-box"><h4>Oefening</h4><p>'+lesson.exercise+'</p></div>' +
+          (comp ?
+            '<div style="text-align:center;margin-top:16px;"><p style="color:var(--success);font-weight:600;">Voltooid! '+'\u2B50'.repeat(s)+'</p>' +
+            '<button class="btn" id="lesson-redo" style="margin-top:8px;">Opnieuw beoordelen</button></div>' :
+            '<div style="text-align:center;margin-top:20px;"><button class="btn btn-primary" id="lesson-complete-btn">Ik heb geoefend!</button></div>'
+          ) +
+          '<div id="star-area" style="display:none;text-align:center;margin-top:16px;">' +
+            '<p style="font-weight:600;margin-bottom:8px;">Hoe ging het?</p>' +
+            '<div class="star-rating" id="star-rating">' +
+              '<span class="star" data-s="1">\u2B50</span>' +
+              '<span class="star" data-s="2">\u2B50</span>' +
+              '<span class="star" data-s="3">\u2B50</span>' +
+            '</div>' +
+            '<p style="font-size:.75rem;opacity:.6;margin-top:4px;">Geprobeerd \u2022 Ging goed \u2022 Top!</p>' +
+          '</div>' +
+        '</div>';
+      ov.classList.add('open');
+      document.getElementById('lesson-back').onclick = closeLesson;
+      const cb = document.getElementById('lesson-complete-btn');
+      const rb = document.getElementById('lesson-redo');
+      const sa = document.getElementById('star-area');
+      if (cb) cb.onclick = () => { cb.parentElement.style.display='none'; sa.style.display='block'; };
+      if (rb) rb.onclick = () => { rb.parentElement.style.display='none'; sa.style.display='block'; };
+      document.querySelectorAll('#star-rating .star').forEach(st => {
+        st.onclick = () => {
+          const n = +st.dataset.s;
+          document.querySelectorAll('#star-rating .star').forEach((ss,i) => ss.classList.toggle('lit', i<n));
+          setTimeout(() => { completeLesson(lessonId, n); closeLesson(); renderLessenTab(); renderDashboard(); }, 400);
+        };
+      });
+    }
+    function closeLesson() { document.getElementById('lesson-overlay').classList.remove('open'); }
+
+    // ══ CONFETTI ══════════════════════════════════════
+    function fireConfetti() {
+      const c = document.getElementById('confetti-canvas');
+      c.style.display='block'; c.width=window.innerWidth; c.height=window.innerHeight;
+      const cx = c.getContext('2d');
+      const cols = ['#d4896a','#7eb5a6','#f0c27f','#e06b6b','#c47a9b','#5b8fa8','#f4c88c'];
+      const pcs = Array.from({length:120}, () => ({
+        x:Math.random()*c.width, y:-20-Math.random()*200,
+        w:6+Math.random()*6, h:4+Math.random()*4,
+        dx:(Math.random()-.5)*3, dy:2+Math.random()*4,
+        rot:Math.random()*360, dr:(Math.random()-.5)*10,
+        col:cols[Math.floor(Math.random()*cols.length)]
+      }));
+      let f=0;
+      (function draw(){
+        cx.clearRect(0,0,c.width,c.height);
+        pcs.forEach(p => { p.x+=p.dx; p.y+=p.dy; p.dy+=.05; p.rot+=p.dr;
+          cx.save(); cx.translate(p.x,p.y); cx.rotate(p.rot*Math.PI/180);
+          cx.fillStyle=p.col; cx.fillRect(-p.w/2,-p.h/2,p.w,p.h); cx.restore();
+        });
+        if(++f<180) requestAnimationFrame(draw); else c.style.display='none';
+      })();
+    }
+
+    // ══ DASHBOARD ═════════════════════════════════════
+    function renderDashboard() {
+      const el = document.getElementById('tab-dashboard');
+      const ts = totalStars(), cc = completedCount();
+      const streak = appState.streak, ss = getSessionStats();
+      const allDone = cc === 20;
+      let next = null;
+      for (const p of paths) { for (const l of p.lessons) { if(!isCompleted(l.id)&&isLessonUnlocked(l.id)){next=l;break;} } if(next)break; }
+      const last = appState.sessions[0];
+      el.innerHTML =
+        (allDone ? '<div class="cozy-master show"><div class="master-icon">\u{1F451}</div><div class="master-title">Cozy Master</div><p style="font-size:.83rem;margin-top:6px;">Alle 20 lessen voltooid!</p></div>' : '') +
+        '<div class="stats-grid">' +
+          '<div class="stat-card"><div class="stat-value">'+(streak.current>=7?'<span class="streak-fire">'+streak.current+'</span>':streak.current)+'</div><div class="stat-label">Streak (best: '+streak.best+')</div></div>' +
+          '<div class="stat-card"><div class="stat-value">'+ts+' / 60</div><div class="stat-label">Sterren</div></div>' +
+          '<div class="stat-card"><div class="stat-value">'+cc+' / 20</div><div class="stat-label">Lessen</div></div>' +
+          '<div class="stat-card"><div class="stat-value">'+ss.totalTime+'</div><div class="stat-label">Kleurtijd</div></div>' +
+        '</div>' +
+        '<div class="card"><h3>Badges</h3><div class="badge-row" style="margin-top:8px;">' +
+          paths.map(p => { const e=p.lessons.every(l=>isCompleted(l.id)); return '<div class="badge-item '+(e?'earned':'')+'">'+p.icon+' '+p.badge+'</div>'; }).join('') +
+        '</div></div>' +
+        '<div class="card"><h3>Pad-voortgang</h3>' +
+          paths.map(p => { const d=p.lessons.filter(l=>isCompleted(l.id)).length;
+            return '<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:4px;"><span>'+p.icon+' '+p.name+'</span><span>'+d+'/4</span></div><div class="path-progress"><div class="path-progress-fill" style="width:'+(d/4*100)+'%"></div></div></div>';
+          }).join('') +
+        '</div>' +
+        (next ? '<div class="card" style="text-align:center;"><h3>Snel verder</h3><p style="margin:8px 0;">'+next.title+'</p><button class="btn btn-primary" id="dash-next" data-l="'+next.id+'">Ga naar les</button></div>' : '') +
+        (last ? '<div class="card"><h3>Laatste sessie</h3><p style="font-size:.83rem;">'+last.date+' \u2014 '+fmtTime(last.duration)+'</p>'+(last.notes?'<p style="font-size:.8rem;opacity:.7;">'+escHtml(last.notes)+'</p>':'')+'</div>' : '');
+      const nb = document.getElementById('dash-next');
+      if (nb) nb.onclick = () => { switchTab('lessen'); setTimeout(()=>openLesson(nb.dataset.l),200); };
+    }
+
+    // ── Initial renders ──
+    renderDashboard();
+    renderAmbientTab();
+    renderKleurenTab();
+    renderSessieTab();
+    renderLessenTab();
+
+    // ── Ambient Particles ──────────────────────────
+    const ambientCanvas = document.getElementById('ambient-canvas');
+    const ambientCtx = ambientCanvas.getContext('2d');
+    const particles = [];
+    const particleColors = ['#d4896a','#7eb5a6','#f0c27f','#c47a9b','#e8a87c','#5b8fa8'];
+
+    function initParticles() {
+      ambientCanvas.width = window.innerWidth;
+      ambientCanvas.height = window.innerHeight;
+      particles.length = 0;
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: Math.random() * ambientCanvas.width,
+          y: Math.random() * ambientCanvas.height,
+          r: Math.random() * 3 + 1,
+          dx: (Math.random() - 0.5) * 0.25,
+          dy: -Math.random() * 0.3 - 0.05,
+          a: Math.random() * 0.4 + 0.1,
+          c: particleColors[Math.floor(Math.random() * particleColors.length)]
+        });
+      }
+    }
+
+    function animateParticles() {
+      ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+      particles.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.y < -10) { p.y = ambientCanvas.height + 10; p.x = Math.random() * ambientCanvas.width; }
+        if (p.x < -10) p.x = ambientCanvas.width + 10;
+        if (p.x > ambientCanvas.width + 10) p.x = -10;
+        ambientCtx.globalAlpha = p.a;
+        ambientCtx.fillStyle = p.c;
+        ambientCtx.beginPath();
+        ambientCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ambientCtx.fill();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+
+    window.addEventListener('resize', initParticles);
+    initParticles();
+    animateParticles();
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
