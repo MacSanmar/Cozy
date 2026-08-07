@@ -677,6 +677,28 @@
       border-color: var(--accent);
     }
 
+    #update-banner {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(72px + env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 20px var(--shadow);
+      z-index: 60;
+      font-size: .84rem;
+      transform: translateY(140%);
+      transition: transform .28s ease;
+    }
+    #update-banner.show { transform: translateY(0); }
+    #update-banner span { flex: 1; }
+    #update-banner .btn { padding: 7px 12px; font-size: .78rem; }
+
     /* ══ Accessibility ════════════════════════════════ */
     .btn:focus-visible,
     .icon-btn:focus-visible,
@@ -1999,9 +2021,36 @@
 
     if (reduceMotion.matches) drawParticles(); else startParticles();
 
-    // Register service worker
+    // Register service worker, and offer a refresh when a new build lands.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const fresh = reg.installing;
+          if (!fresh) return;
+          fresh.addEventListener('statechange', () => {
+            // Only nudge on an update, not on the very first install.
+            if (fresh.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdateBanner(() => {
+                fresh.postMessage('skipWaiting');
+                location.reload();
+              });
+            }
+          });
+        });
+      }).catch(() => {});
+    }
+
+    function showUpdateBanner(onReload) {
+      if (document.getElementById('update-banner')) return;
+      const bar = document.createElement('div');
+      bar.id = 'update-banner';
+      bar.innerHTML = '<span>Nieuwe versie beschikbaar</span>' +
+                      '<button class="btn btn-primary" id="update-now">Vernieuwen</button>' +
+                      '<button class="btn btn-ghost" id="update-later" aria-label="Later">✕</button>';
+      document.body.appendChild(bar);
+      requestAnimationFrame(() => bar.classList.add('show'));
+      document.getElementById('update-now').onclick = onReload;
+      document.getElementById('update-later').onclick = () => bar.remove();
     }
   </script>
 </body>
