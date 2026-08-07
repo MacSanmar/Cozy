@@ -676,6 +676,27 @@
       color: #fff;
       border-color: var(--accent);
     }
+
+    /* ══ Accessibility ════════════════════════════════ */
+    .btn:focus-visible,
+    .icon-btn:focus-visible,
+    .nav-tab:focus-visible,
+    .sound-card:focus-visible,
+    .session-del:focus-visible,
+    .palette-swatch:focus-visible,
+    .lesson-item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1124,7 +1145,8 @@
     })();
 
     // ══ THEME ═════════════════════════════════════════
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const prefersDark  = window.matchMedia('(prefers-color-scheme: dark)');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     function effectiveTheme() {
       const t = appState.settings.theme || 'auto';
@@ -1202,22 +1224,45 @@
             <h3>${p.emoji} ${p.name}</h3>
             <div class="palette-swatches">
               ${p.colors.map(c => `
-                <div class="palette-swatch" style="background:${c.hex}" data-hex="${c.hex}" data-name="${c.name}" title="${c.name}: ${c.hex}">
+                <div class="palette-swatch" style="background:${c.hex}" data-hex="${c.hex}" data-name="${c.name}"
+                     role="button" tabindex="0" aria-label="${c.name}, ${c.hex}, kopieer" title="${c.name}: ${c.hex}">
                   <span class="hex-label">${c.hex}</span>
                 </div>`).join('')}
             </div>
           </div>`).join('')}`;
       el.querySelectorAll('.palette-swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(sw.dataset.hex).then(() => {
-              showToast(sw.dataset.name + ' gekopieerd: ' + sw.dataset.hex);
-            });
-          } else {
-            showToast(sw.dataset.name + ': ' + sw.dataset.hex);
-          }
+        const copy = () => copyHex(sw.dataset.hex, sw.dataset.name);
+        sw.addEventListener('click', copy);
+        sw.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copy(); }
         });
       });
+    }
+
+    // Clipboard access is blocked on insecure origins and can reject on iOS,
+    // so always fall back rather than failing silently.
+    function copyHex(hex, name) {
+      const done = () => showToast(name + ' gekopieerd: ' + hex);
+      const fallback = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = hex;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;top:-1000px;opacity:0;';
+          document.body.appendChild(ta);
+          ta.select();
+          const okCopy = document.execCommand('copy');
+          ta.remove();
+          okCopy ? done() : showToast(name + ': ' + hex);
+        } catch {
+          showToast(name + ': ' + hex);
+        }
+      };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(hex).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
     }
 
     // ══ SESSION TIMER ═════════════════════════════════
@@ -1453,8 +1498,10 @@
         <p style="font-size:.83rem;opacity:.7;margin-bottom:14px;">Combineer geluiden voor jouw perfecte sfeer.</p>
         <div class="sound-grid">
           ${soundDefs.map(s => `
-            <div class="sound-card ${activeSounds.has(s.id)?'active':''}" data-sound="${s.id}">
-              <span class="sound-icon">${s.icon}</span>
+            <div class="sound-card ${activeSounds.has(s.id)?'active':''}" data-sound="${s.id}"
+                 role="button" tabindex="0" aria-pressed="${activeSounds.has(s.id)}"
+                 aria-label="${s.name}${activeSounds.has(s.id) ? ' (aan)' : ''}">
+              <span class="sound-icon" aria-hidden="true">${s.icon}</span>
               <span class="sound-name">${s.name}</span>
             </div>`).join('')}
         </div>
@@ -1480,7 +1527,11 @@
         </div>`;
       // Wire events
       el.querySelectorAll('.sound-card').forEach(c => {
-        c.addEventListener('click', () => toggleSound(c.dataset.sound));
+        const fire = () => toggleSound(c.dataset.sound);
+        c.addEventListener('click', fire);
+        c.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fire(); }
+        });
       });
       const volSlider = document.getElementById('master-vol');
       if (volSlider) {
@@ -1900,26 +1951,53 @@
       }
     }
 
-    function animateParticles() {
+    let particleFrame = null;
+
+    function drawParticles() {
       ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
       particles.forEach(p => {
-        p.x += p.dx;
-        p.y += p.dy;
-        if (p.y < -10) { p.y = ambientCanvas.height + 10; p.x = Math.random() * ambientCanvas.width; }
-        if (p.x < -10) p.x = ambientCanvas.width + 10;
-        if (p.x > ambientCanvas.width + 10) p.x = -10;
         ambientCtx.globalAlpha = p.a;
         ambientCtx.fillStyle = p.c;
         ambientCtx.beginPath();
         ambientCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ambientCtx.fill();
       });
-      requestAnimationFrame(animateParticles);
     }
 
-    window.addEventListener('resize', initParticles);
+    function animateParticles() {
+      particles.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.y < -10) { p.y = ambientCanvas.height + 10; p.x = Math.random() * ambientCanvas.width; }
+        if (p.x < -10) p.x = ambientCanvas.width + 10;
+        if (p.x > ambientCanvas.width + 10) p.x = -10;
+      });
+      drawParticles();
+      particleFrame = requestAnimationFrame(animateParticles);
+    }
+
+    function startParticles() {
+      if (particleFrame !== null || reduceMotion.matches) return;
+      particleFrame = requestAnimationFrame(animateParticles);
+    }
+
+    function stopParticles() {
+      if (particleFrame !== null) { cancelAnimationFrame(particleFrame); particleFrame = null; }
+    }
+
+    window.addEventListener('resize', () => { initParticles(); if (reduceMotion.matches) drawParticles(); });
     initParticles();
-    animateParticles();
+
+    // Don't burn battery animating a screen nobody is looking at, and honour
+    // a system preference for reduced motion by drawing a single still frame.
+    document.addEventListener('visibilitychange', () => {
+      document.hidden ? stopParticles() : startParticles();
+    });
+    reduceMotion.addEventListener('change', () => {
+      if (reduceMotion.matches) { stopParticles(); drawParticles(); } else startParticles();
+    });
+
+    if (reduceMotion.matches) drawParticles(); else startParticles();
 
     // Register service worker
     if ('serviceWorker' in navigator) {
