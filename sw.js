@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cozy-draw-v2';
+const CACHE_NAME = 'cozy-draw-v3';
 const ASSETS = [
   './',
   './index.html',
