@@ -677,6 +677,23 @@
       border-color: var(--accent);
     }
 
+    .streak-note {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      background: var(--panel);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+    .streak-note.calm { border-color: var(--border); }
+    .streak-note > span { font-size: 1.3rem; flex-shrink: 0; }
+    .streak-note > div { flex: 1; }
+    .streak-note .btn { flex-shrink: 0; padding: 7px 12px; font-size: .78rem; }
+
     #update-banner {
       position: fixed;
       left: 12px;
@@ -1383,6 +1400,29 @@
       }, due);
     }
 
+    // 'safe'   – already coloured today
+    // 'risk'   – coloured yesterday, today still open
+    // 'broken' – nothing for 2+ days
+    function streakStatus() {
+      const last = appState.streak.lastDate;
+      if (!last) return 'none';
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const p = last.split('-').map(Number);
+      if (p.length !== 3 || p.some(isNaN)) return 'none';
+      const then = new Date(p[0], p[1] - 1, p[2]);
+      const days = Math.round((today - then) / 86400000);
+      if (days <= 0) return 'safe';
+      if (days === 1) return 'risk';
+      return 'broken';
+    }
+
+    // streak.current is only recomputed when a session is saved, so on its own
+    // it would keep claiming a streak that has already lapsed. Report 0 once
+    // the run is actually broken.
+    function effectiveStreak() {
+      return streakStatus() === 'broken' ? 0 : (appState.streak.current || 0);
+    }
+
     function updateStreak(dateStr, duration) {
       if (duration < 300) return; // min 5 minutes for streak
       const streak = appState.streak;
@@ -1422,7 +1462,7 @@
             <div class="stat-card"><div class="stat-value">${sessieStats.total}</div><div class="stat-label">Sessies</div></div>
             <div class="stat-card"><div class="stat-value">${sessieStats.totalTime}</div><div class="stat-label">Totale tijd</div></div>
             <div class="stat-card"><div class="stat-value">${sessieStats.avg}</div><div class="stat-label">Gem. duur</div></div>
-            <div class="stat-card"><div class="stat-value">${appState.streak.current}${appState.streak.current >= 7 ? ' \u{1F525}' : ''}</div><div class="stat-label">Streak (dagen)</div></div>
+            <div class="stat-card"><div class="stat-value">${effectiveStreak()}${effectiveStreak() >= 7 ? ' \u{1F525}' : ''}</div><div class="stat-label">Streak (dagen)</div></div>
           </div>
         </div>
         ${appState.sessions.length > 0 ? `
@@ -1844,10 +1884,21 @@
         document.getElementById('welcome-skip')?.addEventListener('click', finish(() => renderDashboard()));
         return;
       }
+      const stStatus = streakStatus();
+      const effStreak = effectiveStreak();
+      const streakNote =
+        stStatus === 'risk' && streak.current > 0
+          ? '<div class="streak-note"><span>\u{1F525}</span><div>Je reeks van ' + streak.current + ' dagen loopt af. Kleur vandaag nog even om ’m vast te houden.</div>' +
+            '<button class="btn btn-primary" id="streak-go">Start</button></div>'
+          : stStatus === 'broken' && streak.best > 1
+            ? '<div class="streak-note calm"><span>\u{1F331}</span><div>Je reeks is gestopt — geen probleem. Je beste was ' + streak.best + ' dagen; begin vandaag opnieuw.</div>' +
+              '<button class="btn" id="streak-go">Start</button></div>'
+            : '';
       el.innerHTML =
         (allDone ? '<div class="cozy-master show"><div class="master-icon">\u{1F451}</div><div class="master-title">Cozy Master</div><p style="font-size:.83rem;margin-top:6px;">Alle 20 lessen voltooid!</p></div>' : '') +
+        streakNote +
         '<div class="stats-grid">' +
-          '<div class="stat-card"><div class="stat-value">'+(streak.current>=7?'<span class="streak-fire">'+streak.current+'</span>':streak.current)+'</div><div class="stat-label">Streak (best: '+streak.best+')</div></div>' +
+          '<div class="stat-card"><div class="stat-value">'+(effStreak>=7?'<span class="streak-fire">'+effStreak+'</span>':effStreak)+'</div><div class="stat-label">Streak (best: '+streak.best+')</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+ts+' / 60</div><div class="stat-label">Sterren</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+cc+' / 20</div><div class="stat-label">Lessen</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+ss.totalTime+'</div><div class="stat-label">Kleurtijd</div></div>' +
@@ -1872,6 +1923,10 @@
         '</div>';
       const nb = document.getElementById('dash-next');
       if (nb) nb.onclick = () => { switchTab('lessen'); setTimeout(()=>openLesson(nb.dataset.l),200); };
+      document.getElementById('streak-go')?.addEventListener('click', () => {
+        switchTab('sessie');
+        if (!appState.timer.running) startTimer();
+      });
       document.getElementById('dash-export')?.addEventListener('click', exportProgress);
       const fileInput = document.getElementById('dash-import-file');
       document.getElementById('dash-import')?.addEventListener('click', () => fileInput.click());
