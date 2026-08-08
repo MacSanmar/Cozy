@@ -29,6 +29,7 @@ COZY_URL=https://macsanmar.github.io/Cozy npm test
 | `03-a11y-and-motion` | Keyboard operation and ARIA state on sound cards and palette swatches, clipboard copy with fallback, and that the particle loop pauses under `prefers-reduced-motion` while still drawing a still frame |
 | `04-offline` | Service worker registration, loading with the network cut, reading stored progress offline, and network-first page fetches when online |
 | `05-streaks` | The four streak states — safe, at risk, lapsed, and no history — including that a lapsed streak reports 0 rather than a stale count |
+| `06-draw` | The drawing app (`index.html`): HiDPI backing store, drawing/undo/redo, that a drawing survives a reload, brush and size preferences persisting, macOS `Cmd+Z`/`Cmd+Shift+Z`, rapid music toggling not throwing, and the particle loop stopping when switched off or under reduced motion |
 
 Screenshots land in `tests/shots/` (gitignored).
 
