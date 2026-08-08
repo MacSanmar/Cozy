@@ -30,6 +30,7 @@ COZY_URL=https://macsanmar.github.io/Cozy npm test
 | `04-offline` | Service worker registration, loading with the network cut, reading stored progress offline, and network-first page fetches when online |
 | `05-streaks` | The four streak states — safe, at risk, lapsed, and no history — including that a lapsed streak reports 0 rather than a stale count |
 | `06-draw` | The drawing app (`index.html`): HiDPI backing store, drawing/undo/redo, that a drawing survives a reload, brush and size preferences persisting, macOS `Cmd+Z`/`Cmd+Shift+Z`, rapid music toggling not throwing, and the particle loop stopping when switched off or under reduced motion |
+| `07-security` | Regressions for the four findings in the security review: a crafted backup must not execute or persist script, the schema must drop unknown lesson ids / invalid dates / out-of-range values while a valid backup still imports, oversized backups are rejected before parsing, service-worker activation preserves other apps' caches while cleaning its own, and navigation caching stays bounded and allowlisted |
 
 Screenshots land in `tests/shots/` (gitignored).
 

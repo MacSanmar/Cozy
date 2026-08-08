@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Cozy Color Companion</title>
+  <!-- Defence in depth. The app is a single self-contained file, so it needs
+       no external origins at all; 'unsafe-inline' is unavoidable because the
+       script and styles are inline, but blocking outbound connections and
+       framing still limits what injected markup could achieve. -->
+  <!-- worker-src is required or the service worker is refused and offline
+       support silently dies. frame-ancestors is deliberately absent: it is
+       ignored in a meta tag and needs a real header, which Pages cannot set. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; worker-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#fdf6ec">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1310,7 +1318,8 @@
     let timerInterval = null;
     let pauseReminderTimeout = null;
 
-    function fmtTime(s) {
+    function fmtTime(raw) {
+      const s = num(raw);
       const h = Math.floor(s/3600);
       const m = Math.floor((s%3600)/60);
       const sec = s % 60;
@@ -1420,7 +1429,7 @@
     // it would keep claiming a streak that has already lapsed. Report 0 once
     // the run is actually broken.
     function effectiveStreak() {
-      return streakStatus() === 'broken' ? 0 : (appState.streak.current || 0);
+      return streakStatus() === 'broken' ? 0 : num(appState.streak.current);
     }
 
     function updateStreak(dateStr, duration) {
@@ -1525,13 +1534,18 @@
 
     function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+    // Values that are meant to be numbers must render as numbers. Without
+    // this, a string from a tampered store would concatenate straight into
+    // innerHTML (e.g. 0 + "<img onerror=...>") instead of summing.
+    function num(v, dflt) { const n = Number(v); return Number.isFinite(n) ? n : (dflt || 0); }
+
     const NL_MONTHS = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
 
     // "2026-08-06" -> "vandaag" / "gisteren" / "6 augustus" / "6 augustus 2025"
     function fmtDate(iso) {
       if (!iso) return '';
       const parts = String(iso).split('-').map(Number);
-      if (parts.length !== 3 || parts.some(isNaN)) return iso;
+      if (parts.length !== 3 || parts.some(isNaN)) return escHtml(String(iso));
       const [y, m, d] = parts;
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const then = new Date(y, m - 1, d);
@@ -1713,7 +1727,7 @@
     }
     function isCompleted(id) { return appState.lessons[id]?.completed || false; }
     function getStars(id) { return appState.lessons[id]?.stars || 0; }
-    function totalStars() { return Object.values(appState.lessons).reduce((a,l) => a + (l.stars||0), 0); }
+    function totalStars() { return Object.values(appState.lessons).reduce((a,l) => a + num(l && l.stars), 0); }
     function completedCount() { return Object.values(appState.lessons).filter(l => l.completed).length; }
 
     function completeLesson(id, stars) {
@@ -1784,7 +1798,7 @@
           '<ul>'+lesson.tips.map(t=>'<li>'+t+'</li>').join('')+'</ul>' +
           '<div class="exercise-box"><h4>Oefening</h4><p>'+lesson.exercise+'</p></div>' +
           (comp ?
-            '<div style="text-align:center;margin-top:16px;"><p style="color:var(--success);font-weight:600;">Voltooid! '+'\u2B50'.repeat(s)+'</p>' +
+            '<div style="text-align:center;margin-top:16px;"><p style="color:var(--success);font-weight:600;">Voltooid! '+'\u2B50'.repeat(Math.min(3, Math.max(0, num(s))))+'</p>' +
             '<button class="btn" id="lesson-redo" style="margin-top:8px;">Opnieuw beoordelen</button></div>' :
             '<div style="text-align:center;margin-top:20px;"><button class="btn btn-primary" id="lesson-complete-btn">Ik heb geoefend!</button></div>'
           ) +
@@ -1888,17 +1902,17 @@
       const effStreak = effectiveStreak();
       const streakNote =
         stStatus === 'risk' && streak.current > 0
-          ? '<div class="streak-note"><span>\u{1F525}</span><div>Je reeks van ' + streak.current + ' dagen loopt af. Kleur vandaag nog even om ’m vast te houden.</div>' +
+          ? '<div class="streak-note"><span>\u{1F525}</span><div>Je reeks van ' + num(streak.current) + ' dagen loopt af. Kleur vandaag nog even om ’m vast te houden.</div>' +
             '<button class="btn btn-primary" id="streak-go">Start</button></div>'
           : stStatus === 'broken' && streak.best > 1
-            ? '<div class="streak-note calm"><span>\u{1F331}</span><div>Je reeks is gestopt — geen probleem. Je beste was ' + streak.best + ' dagen; begin vandaag opnieuw.</div>' +
+            ? '<div class="streak-note calm"><span>\u{1F331}</span><div>Je reeks is gestopt — geen probleem. Je beste was ' + num(streak.best) + ' dagen; begin vandaag opnieuw.</div>' +
               '<button class="btn" id="streak-go">Start</button></div>'
             : '';
       el.innerHTML =
         (allDone ? '<div class="cozy-master show"><div class="master-icon">\u{1F451}</div><div class="master-title">Cozy Master</div><p style="font-size:.83rem;margin-top:6px;">Alle 20 lessen voltooid!</p></div>' : '') +
         streakNote +
         '<div class="stats-grid">' +
-          '<div class="stat-card"><div class="stat-value">'+(effStreak>=7?'<span class="streak-fire">'+effStreak+'</span>':effStreak)+'</div><div class="stat-label">Streak (best: '+streak.best+')</div></div>' +
+          '<div class="stat-card"><div class="stat-value">'+(effStreak>=7?'<span class="streak-fire">'+effStreak+'</span>':effStreak)+'</div><div class="stat-label">Streak (best: '+num(streak.best)+')</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+ts+' / 60</div><div class="stat-label">Sterren</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+cc+' / 20</div><div class="stat-label">Lessen</div></div>' +
           '<div class="stat-card"><div class="stat-value">'+ss.totalTime+'</div><div class="stat-label">Kleurtijd</div></div>' +
@@ -1948,9 +1962,95 @@
       showToast('Back-up gedownload');
     }
 
+    // \u2500\u2500 Backup validation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // A backup arrives from outside the app, so nothing in it is trusted.
+    // Rather than patching a supplied object, build a fresh state and copy
+    // across only values that satisfy an explicit schema. Anything unknown,
+    // mistyped or out of range is dropped rather than coerced through.
+    const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+    const MAX_SESSIONS = 1000;
+    const MAX_NOTE_LEN = 1000;
+    const VALID_THEMES = ['auto', 'light', 'dark'];
+
+    function clampInt(v, lo, hi, dflt) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return dflt;
+      return Math.min(hi, Math.max(lo, Math.round(n)));
+    }
+
+    function safeStr(v, max) {
+      return typeof v === 'string' ? v.slice(0, max) : '';
+    }
+
+    // Accepts only a real calendar date in YYYY-MM-DD; rejects 2026-02-31.
+    function safeDate(v) {
+      if (typeof v !== 'string') return null;
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+      if (!m) return null;
+      const y = +m[1], mo = +m[2], d = +m[3];
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+      return v;
+    }
+
+    function sanitizeState(raw) {
+      const out = defaultState();
+      if (!raw || typeof raw !== 'object') return out;
+      // Resolved lazily: `paths` and `soundDefs` are defined further down.
+      const lessonIds = new Set(paths.flatMap(p => p.lessons.map(l => l.id)));
+      const soundIds = new Set(soundDefs.map(s => s.id));
+
+      if (raw.lessons && typeof raw.lessons === 'object') {
+        Object.keys(raw.lessons).forEach(id => {
+          if (!lessonIds.has(id)) return;          // unknown lesson ids dropped
+          const l = raw.lessons[id];
+          if (!l || typeof l !== 'object') return;
+          out.lessons[id] = { completed: !!l.completed, stars: clampInt(l.stars, 0, 3, 0) };
+        });
+      }
+
+      if (Array.isArray(raw.sessions)) {
+        out.sessions = raw.sessions.slice(0, MAX_SESSIONS).map(s => {
+          if (!s || typeof s !== 'object') return null;
+          const date = safeDate(s.date);
+          if (!date) return null;                  // a session without a real date is meaningless
+          return { date, duration: clampInt(s.duration, 0, 604800, 0), notes: safeStr(s.notes, MAX_NOTE_LEN) };
+        }).filter(Boolean);
+      }
+
+      const st = (raw.streak && typeof raw.streak === 'object') ? raw.streak : {};
+      out.streak = {
+        current: clampInt(st.current, 0, 100000, 0),
+        best: clampInt(st.best, 0, 100000, 0),
+        lastDate: safeDate(st.lastDate),
+      };
+
+      const se = (raw.settings && typeof raw.settings === 'object') ? raw.settings : {};
+      out.settings = {
+        volume: clampInt(se.volume, 0, 100, 50),
+        muted: !!se.muted,
+        activeSounds: Array.isArray(se.activeSounds)
+          ? se.activeSounds.filter(x => soundIds.has(x)).slice(0, 16) : [],
+        theme: VALID_THEMES.indexOf(se.theme) >= 0 ? se.theme : 'auto',
+        sleepMinutes: clampInt(se.sleepMinutes, 0, 600, 0),
+        onboarded: !!se.onboarded,
+      };
+
+      // A timer belongs to the device it was started on; never carry one over.
+      out.timer = { startedAt: null, accumulated: 0, running: false, paused: false, notes: '' };
+      return out;
+    }
+
     function importProgress(e) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
+      // Bound the work before reading: an oversized file would otherwise be
+      // fully buffered and parsed before anything gets a chance to reject it.
+      if (file.size > MAX_BACKUP_BYTES) {
+        showToast('Bestand te groot voor een back-up');
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         try {
@@ -1959,16 +2059,14 @@
           if (!incoming || typeof incoming !== 'object' || !('lessons' in incoming)) {
             throw new Error('unrecognised');
           }
-          const done = Object.values(incoming.lessons || {}).filter(l => l && l.completed).length;
-          const sess = Array.isArray(incoming.sessions) ? incoming.sessions.length : 0;
+          const clean = sanitizeState(incoming);
+          const done = Object.values(clean.lessons).filter(l => l.completed).length;
+          const sess = clean.sessions.length;
           if (!confirm('Back-up laden?\n\n' + done + ' lessen, ' + sess + ' sessies.\n\nDit vervangt je huidige voortgang.')) {
             e.target.value = '';
             return;
           }
-          const merged = migrateState(incoming);
-          // Never resume a timer that belongs to another device's session.
-          merged.timer = { startedAt: null, accumulated: 0, running: false, paused: false, notes: '' };
-          localStorage.setItem(STORE_KEY, JSON.stringify(merged));
+          localStorage.setItem(STORE_KEY, JSON.stringify(clean));
           showToast('Back-up geladen \u2014 herladen\u2026');
           setTimeout(() => location.reload(), 900);
         } catch {
@@ -1976,6 +2074,7 @@
           e.target.value = '';
         }
       };
+      reader.onerror = () => { showToast('Kon dit bestand niet lezen'); e.target.value = ''; };
       reader.readAsText(file);
     }
 
