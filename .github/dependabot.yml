@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # The Pages workflow pins actions to commit SHAs for supply-chain integrity.
+  # Without this, those pins would silently go stale and stop receiving the
+  # actions' own security fixes. Dependabot opens a PR when a pin moves,
+  # keeping the SHA both immutable and current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+
+  # Test-only dependency (Playwright). Not shipped to the published site.
+  - package-ecosystem: npm
+    directory: /tests
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: test
+    labels:
+      - dependencies

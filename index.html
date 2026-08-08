@@ -800,6 +800,22 @@
       toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 1200);
     }
 
+
+    // ══ CLICKJACKING GUARD ═════════════════════════════
+    // GitHub Pages cannot send a frame-ancestors response header, and the
+    // directive is ignored in a meta tag, so framing is refused in script.
+    // Escape the frame if allowed; if sandboxed, refuse destructive actions.
+    const isFramed = (() => { try { return window.top !== window.self; } catch { return true; } })();
+    if (isFramed) {
+      try { window.top.location = window.location.href; } catch (e) { /* sandboxed */ }
+    }
+
+    function allowDestructive() {
+      if (!isFramed) return true;
+      showToast('Geblokkeerd: deze pagina staat in een frame');
+      return false;
+    }
+
     // ── Brush drawing logic ───────────────────────────
     function getCanvasPos(e) {
       const r = canvas.getBoundingClientRect();
@@ -1191,6 +1207,9 @@
       document.getElementById('btn-undo').addEventListener('click', undo);
       document.getElementById('btn-redo').addEventListener('click', redo);
       document.getElementById('btn-clear').addEventListener('click', () => {
+        // Clear is undoable via history, so no confirmation - but a framed
+        // page must not be able to trigger it through a disguised click.
+        if (!allowDestructive()) return;
         ctx.clearRect(0, 0, state.cssW, state.cssH);
         fillBackground();
         saveState();

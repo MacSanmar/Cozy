@@ -842,6 +842,24 @@
       t._t = setTimeout(() => t.classList.remove('show'), 1800);
     }
 
+
+    // ══ CLICKJACKING GUARD ═════════════════════════════
+    // GitHub Pages cannot send a frame-ancestors response header, and the
+    // directive is ignored when delivered in a meta tag, so framing has to be
+    // refused in script. Try to escape the frame; if that is blocked (a
+    // sandboxed iframe), fall back to refusing anything destructive so a
+    // disguised click cannot delete the user's data.
+    const isFramed = (() => { try { return window.top !== window.self; } catch { return true; } })();
+    if (isFramed) {
+      try { window.top.location = window.location.href; } catch (e) { /* sandboxed */ }
+    }
+
+    function allowDestructive() {
+      if (!isFramed) return true;
+      showToast('Geblokkeerd: deze pagina staat in een frame');
+      return false;
+    }
+
     // ══ AUDIO ENGINE ═══════════════════════════════════
     let audioCtx = null;
     let masterGain = null;
@@ -1508,9 +1526,13 @@
       }
       el.querySelectorAll('.session-del').forEach(btn => {
         btn.addEventListener('click', () => {
+          if (!allowDestructive()) return;
           const i = Number(btn.dataset.i);
           const s = appState.sessions[i];
           if (!s) return;
+          // Removing a session is permanent - there is no undo for it.
+          if (!confirm('Deze sessie verwijderen?\n\n' + s.date + ' \u2014 ' + fmtTime(s.duration) +
+                       '\n\nDit kan niet ongedaan worden gemaakt.')) return;
           appState.sessions.splice(i, 1);
           saveAppState();
           showToast('Sessie verwijderd');
@@ -2044,6 +2066,7 @@
     function importProgress(e) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
+      if (!allowDestructive()) { e.target.value = ''; return; }
       // Bound the work before reading: an oversized file would otherwise be
       // fully buffered and parsed before anything gets a chance to reject it.
       if (file.size > MAX_BACKUP_BYTES) {

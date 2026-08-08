@@ -11,6 +11,9 @@ const page = await ctx.newPage();
 
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
+// Deleting a session now asks for confirmation (added as a clickjacking
+// mitigation); accept it so this suite exercises the delete path itself.
+page.on('dialog', d => d.accept());
 page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
 await page.goto(APP_URL, { waitUntil: 'networkidle' });
@@ -99,8 +102,8 @@ if (delCount > 0) {
   await page.click('.session-del');
   await page.waitForTimeout(300);
   const left = await page.evaluate(() => JSON.parse(localStorage.getItem('cozyCompanion')).sessions.length);
-  left === 0 ? ok('session delete works') : bad('session delete works', 'left=' + left);
-} else bad('session delete works', 'no delete button rendered');
+  left === 0 ? ok('session delete works (after confirmation)') : bad('session delete works (after confirmation)', 'left=' + left);
+} else bad('session delete works (after confirmation)', 'no delete button rendered');
 
 // 8. Sleep timer buttons wire up
 await page.click('button[data-tab="ambient"]');
