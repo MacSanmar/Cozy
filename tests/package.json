@@ -1,0 +1,13 @@
+{
+  "name": "cozy-tests",
+  "private": true,
+  "type": "module",
+  "description": "Optional browser tests. The app itself has no dependencies and no build step.",
+  "scripts": {
+    "test": "node run.mjs",
+    "setup": "npm install && npx playwright install chromium"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
